@@ -8,33 +8,23 @@ import argparse
 from astropy.constants import R_sun
 from scipy.stats import sem
 
-def period_fit_old(X0, rp, a, inc, ecc, w, u1, u2, phase, flux, err):
+def bm_lc_model(t, t0, per, rp, a, inc=89., ecc=0., w=90., u1=0.3, u2=0.2, ld="quadratic"):
 	
-	t0 = X0[0]
-	per = X0[1]
-
 	pm = bm.TransitParams()
-	
+
 	pm.t0 = t0
+	pm.per = per
 	pm.rp = rp
 	pm.a = a
 	pm.inc = inc
-	
-	pm.per = per
 	pm.ecc = ecc
 	pm.w = w
 	pm.u = [u1, u2]
-	pm.limb_dark="quadratic"
-	
-	m = bm.TransitModel(pm, phase)
-	
-	model = m.light_curve(pm)
-	
-	chi_vals = np.sqrt((flux - model)**2 / err**2)
-	
-	fit_val = np.sum(chi_vals) / (len(chi_vals) - 1)
-	
-	return fit_val
+	pm.limb_dark = ld
+
+	m = bm.TransitModel(pm, t)
+	flux = m.light_curve(pm)
+	return flux
 
 def period_fit(X0, time, flux, err):
 	
@@ -49,23 +39,8 @@ def period_fit(X0, time, flux, err):
 	u2 = X0[8]
 	
 	phase = (((time - t0)/per)%1)+0.25
-
-	pm = bm.TransitParams()
 	
-	pm.t0 = 0.25
-	pm.rp = rp
-	pm.a = a
-	pm.inc = inc
-	
-	pm.per = 1.
-	pm.ecc = ecc
-	pm.w = w
-	pm.u = [u1, u2]
-	pm.limb_dark="quadratic"
-	
-	m = bm.TransitModel(pm, phase)
-	
-	model = m.light_curve(pm)
+	model = bm_lc_model(phase, 0.25, 1., rp, a, inc, ecc, w, u1, u2)
 	
 	chi_vals = np.sqrt((flux - model)**2 / err**2)
 	
@@ -75,30 +50,16 @@ def period_fit(X0, time, flux, err):
 
 def fold_fit(X0, phase, flux, err):
 	
-        rp = X0[0]
-        a = X0[1]
-        inc = X0[2]
-        ecc = X0[3]
-        w = X0[4]
-        u1 = X0[5]
-        u2 = X0[6]
+        t0 = X0[0]
+        rp = X0[1]
+        a = X0[2]
+        inc = X0[3]
+        ecc = X0[4]
+        w = X0[5]
+        u1 = X0[6]
+        u2 = X0[7]
 
-        pm = bm.TransitParams()
-
-        pm.t0 = args.epoc
-        pm.rp = rp
-        pm.a = a
-        pm.inc = inc
-
-        pm.per = 1.
-        pm.ecc = ecc
-        pm.w = w
-        pm.u = [u1, u2]
-        pm.limb_dark="quadratic"
-
-        m = bm.TransitModel(pm, phase)
-
-        model = m.light_curve(pm)
+        model = bm_lc_model(phase, t0, 1., rp, a, inc, ecc, w, u1, u2)
 
         chi_vals = np.sqrt((flux - model)**2 / err**2)
 
@@ -124,25 +85,29 @@ def lc_bin(time, flux, bin_width):
 if __name__ == "__main__":
 	
 	parser = argparse.ArgumentParser()
-	parser.add_argument('fn', type=str)
-	parser.add_argument('lc', type=str)
-	parser.add_argument('-bw', '--binwidth', type=int)
-	parser.add_argument('-t0', '--epoc', type=float)
-	parser.add_argument('-per', '--period', type=float)
-	parser.add_argument('-rp', '--rad', type=float)
-	parser.add_argument('-a', '--smaxis', type=float)
+	parser.add_argument('fn', type=str, help="Name of data file")
+	parser.add_argument('fit', type=str, help="Type of fit to perform")
+	parser.add_argument('-bw', '--binwidth', type=int, default=5, help="Bin width in units of minutes")
+	parser.add_argument('-t0', '--epoc', type=float, default=0., help="First guess time of first transit")
+	parser.add_argument('-per', '--period', type=float, default=1., help="First guess of orbital period")
+	parser.add_argument('-rp', '--rad', type=float, default=0.1, help="First guess of planet:star radius ratio")
+	parser.add_argument('-a', '--smaxis', type=float, default=10., help="First guess of sm axis (units of stellar radius")
+	parser.add_argument('-inc', '--inclination', type=float, default=89.)
+	parser.add_argument('-e', '--ecc', type=float, default=0.)
+	parser.add_argument('-w', '--omega', type=float, default=90.)
+	parser.add_argument('-fp', '--flux', type=float, default=1.)
 
 	args = parser.parse_args()
-
-	if args.lc == 'full':
+	
+	t0, per, rp, a, inc, ecc, w, fp = args.epoc, args.period, args.rad, args.smaxis, args.inclination, args.ecc, args.omega, args.flux
+	
+	if args.fit == 'full':
 	
 		data_full = np.loadtxt(args.fn)
 		time_full, flux_full = data_full[:, 0] - data_full[:, 0].min(), data_full[:, 3]  
 	
 		bw = args.binwidth / 1440  #put bin width into units of days	
 		time_bin, flux_bin, err_bin = lc_bin(time_full, flux_full, bw)
-	
-		t0, per, rp, a = args.epoc, args.period, args.rad, args.smaxis
 	
 		bounds_full = Bounds(([t0-0.1, per-0.05, rp-0.3, a-5, 85., 0., 0., 0., 0.]), ([t0+0.1, per+0.05, rp+0.3, a+5, 90., 1.0, 90., 1.0, 1.0]))
 		res = mini(fold_fit, [t0, per, rp, a, 89., 0., 90., 0.3, 0.2], args=(time_bin, flux_bin, err_bin), bounds=bounds_full)
@@ -175,49 +140,41 @@ if __name__ == "__main__":
 		plt.xlabel('Time [days]')
 		plt.ylabel('Relative Flux')
 		plt.show()
-
 	
-	if args.lc == 'pf':
+	if args.fit == 'pf':
 
 		data = np.loadtxt(args.fn)
-		phase_bin, flux_bin, err_bin = data[:, 0], data[:, 1], data[:, 2]
+		PHASE, flux, err = data[:, 0], data[:, 1], data[:, 2]
+		phase = np.array(PHASE, dtype=float)-0.176
 		
-		t0, rp, a = args.epoc, args.rad, args.smaxis
+		bounds = Bounds(([t0-0.005, 0.1, 5., 85., 0.1, 0., 0., 0.]), ([t0+0.005, 1., 35., 90., 0.9, 45., 1., 1.]))
 
-		phase_fit = np.array(phase_bin, dtype=float)
+		res = mini(fold_fit, [t0, rp, a, inc, ecc, w, 0.3, 0.2], args=(phase, flux, err), bounds=bounds)
 
-		bounds = Bounds(([0.01, 5., 85., 0.5, 0., 0., 0.]), ([1., 30., 90., 0.9, 360., 1., 1.]))
+		print(r'Minimization success is {} with $\chi^2$={:.2f}'.format(res.success, res.fun))
+		print("t0 = {:.4f}; rp = {:.4f}; a = {:.4f}".format(res.x[0], res.x[1], res.x[2]))
+		print("inc = {:.4f}; ecc = {:.4f}; w = {:.4f}; u = [{:.4f}, {:.4f}]".format(res.x[3], res.x[4], res.x[5], res.x[6], res.x[7]))
 
-		res = mini(fold_fit, [rp, a, 89., 0.7, 90., 0.3, 0.2], args=(phase_fit, flux_bin, err_bin), bounds=bounds)	
-		print(res.fun, res.success)
-		print(res.x)
-
-		pm = bm.TransitParams()
-	
-		pm.t0 = t0
-		pm.per = 1.
-		pm.rp = res.x[0]
-		pm.a = res.x[1]
-		pm.inc = res.x[2]
-		pm.ecc = res.x[3]
-		pm.w = res.x[4]
-		pm.u = [res.x[5], res.x[6]]
-		pm.limb_dark = "quadratic"
+		phase_plot = np.array([p - 1. if p > 0.75 else p for p in phase])
+		phase_model = phase_plot[np.argsort(phase_plot)]
 		
-		phase_model = np.linspace(phase_fit.min(), phase_fit.max(), len(phase_fit))
+		flux_model = bm_lc_model(phase_model, res.x[0], 1., res.x[1], res.x[2], res.x[3], res.x[4], res.x[5], res.x[6], res.x[7])
+		t1, t4 = phase_model[np.where(flux_model < 1)[0][0]], phase_model[np.where(flux_model < 1)[0][-1]]
+		T_dur = (t4 - t1) * per * 24
+		depth = 1 - flux_model.min()
 		
-		m = bm.TransitModel(pm, phase_model)
-		flux_model = m.light_curve(pm)
-		
+		p_bin, f_bin, e_bin = lc_bin(phase_plot, flux, args.binwidth/(per * 1440))
+
 		axis_font = {'fontname':'DejaVu Sans', 'size':'20'}
-
+		
 		plt.figure()
 
-		plt.errorbar(phase_fit, flux_bin, yerr=err_bin, marker='o', color='black', linestyle='none', markersize=3)
-		plt.plot(phase_model, flux_model, 'r--')
+		plt.plot(phase_plot, flux, marker='o', color='grey', linestyle='none', markersize=0.5)
+		plt.plot(p_bin, f_bin, 'ko', markersize=5)
+		plt.plot(phase_model, flux_model, 'r--', linewidth=2)
 		plt.xlabel('Phase [days]', **axis_font)
 		plt.ylabel('Relative Flux', **axis_font)
-		plt.title('NOI 104155; Period = 12.1804 days; Transit 2 \n Rp={:.2f}; a={:.2f}; inc={:.2f}$^o$; ecc={:.2f}; w={:.2f}$^o$; $\chi^2$={:.2f}'.format(res.x[0], res.x[1], res.x[2], res.x[3], res.x[4], res.fun), **axis_font)
+		plt.title('NOI 104155; Period = {:.4f} days; Transit 2; Tdur={:.4f} hours; depth={:.1f}% \n t0={:.4f}; Rp={:.4f}; a={:.4f}; inc={:.4f}$^o$; ecc={:.4f}; w={:.4f}$^o$; $\chi^2$={:.4f}'.format(per, T_dur, depth*100, res.x[0], res.x[1], res.x[2], res.x[3], res.x[4], res.x[5], res.fun), **axis_font)
 
 		plt.show()
 	
