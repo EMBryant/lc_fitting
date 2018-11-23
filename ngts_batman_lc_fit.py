@@ -145,13 +145,13 @@ if __name__ == "__main__":
 
 		data = np.loadtxt(args.fn)
 		PHASE, flux, err = data[:, 0], data[:, 1], data[:, 2]
-		phase = np.array(PHASE, dtype=float)-0.176
+		phase = np.array(PHASE, dtype=float)
 		
 		bounds = Bounds(([t0-0.005, 0.1, 5., 85., 0.1, 0., 0., 0.]), ([t0+0.005, 1., 35., 90., 0.9, 45., 1., 1.]))
 
 		res = mini(fold_fit, [t0, rp, a, inc, ecc, w, 0.3, 0.2], args=(phase, flux, err), bounds=bounds)
 
-		print(r'Minimization success is {} with $\chi^2$={:.2f}'.format(res.success, res.fun))
+		print("Minimization success is {} with chi2={:.2f}".format(res.success, res.fun))
 		print("t0 = {:.4f}; rp = {:.4f}; a = {:.4f}".format(res.x[0], res.x[1], res.x[2]))
 		print("inc = {:.4f}; ecc = {:.4f}; w = {:.4f}; u = [{:.4f}, {:.4f}]".format(res.x[3], res.x[4], res.x[5], res.x[6], res.x[7]))
 
@@ -178,4 +178,12 @@ if __name__ == "__main__":
 
 		plt.show()
 	
+	if args.fit == "db1":
+		
+		data = np.loadtxt(args.fn)
+		PHASE, flux, err = data[:, 0], data[:, 1], data[:, 2]
+		phase = np.array(PHASE, dtype=float)
+		
+		bounds = Bounds(([t0-0.005, 0.1, 0.5., 85., 0.1, 0., 0., 0.]), ([t0+0.005, 1., 35., 90., 0.9, 45., 1., 1.]))
+
 	
