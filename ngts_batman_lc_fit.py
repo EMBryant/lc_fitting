@@ -87,7 +87,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument('fn', type=str, help="Name of data file")
 	parser.add_argument('fit', type=str, help="Type of fit to perform")
-	parser.add_argument('-bw', '--binwidth', type=int, default=5, help="Bin width in units of minutes")
+	parser.add_argument('-bw', '--binwidth', type=int, default=10, help="Bin width in units of minutes")
 	parser.add_argument('-t0', '--epoc', type=float, default=0., help="First guess time of first transit")
 	parser.add_argument('-per', '--period', type=float, default=1., help="First guess of orbital period")
 	parser.add_argument('-rp', '--rad', type=float, default=0.1, help="First guess of planet:star radius ratio")
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 		PHASE, flux, err = data[:, 0], data[:, 1], data[:, 2]
 		phase = np.array(PHASE, dtype=float)
 		
-		bounds = Bounds(([t0-0.005, 0.1, 5., 85., 0.1, 0., 0., 0.]), ([t0+0.005, 1., 35., 90., 0.9, 45., 1., 1.]))
+		bounds = Bounds(([t0-0.005, 0.1, 5., 80., 0.1, 0., 0.005, 0.5]), ([t0+0.005, 1., 35., 88., 0.9, 45., 0.015, 0.6]))
 
 		res = mini(fold_fit, [t0, rp, a, inc, ecc, w, 0.3, 0.2], args=(phase, flux, err), bounds=bounds)
 
@@ -169,7 +169,7 @@ if __name__ == "__main__":
 		
 		plt.figure()
 
-		plt.plot(phase_plot, flux, marker='o', color='grey', linestyle='none', markersize=0.5)
+		plt.plot(phase_plot, flux, marker='o', color='grey', linestyle='none', markersize=1.5)
 		plt.plot(p_bin, f_bin, 'ko', markersize=5)
 		plt.plot(phase_model, flux_model, 'r--', linewidth=2)
 		plt.xlabel('Phase [days]', **axis_font)
@@ -178,7 +178,7 @@ if __name__ == "__main__":
 
 		plt.show()
 	
-	if args.fit == "db1":
+'''	if args.fit == "db1":
 		
 		data = np.loadtxt(args.fn)
 		PHASE, flux, err = data[:, 0], data[:, 1], data[:, 2]
@@ -187,3 +187,4 @@ if __name__ == "__main__":
 		bounds = Bounds(([t0-0.005, 0.1, 0.5., 85., 0.1, 0., 0., 0.]), ([t0+0.005, 1., 35., 90., 0.9, 45., 1., 1.]))
 
 	
+'''

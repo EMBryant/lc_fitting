@@ -193,14 +193,14 @@ if __name__ == "__main__":
         data1 = np.loadtxt(args.fn)
         data2 = np.loadtxt(args.f2)
         
-        PHASE1, flux1, err1 = data1[:, 0], data1[:, 1], data1[:, 2]
+        PHASE1, flux1, err1 = data1[:, 0], data1[:, 3], data1[:, 4]
         phase1 = np.array(PHASE1, dtype=float)
         
-        PHASE2, flux2, err2 = data2[:, 0], data2[:, 1], data2[:, 2]
+        PHASE2, flux2, err2 = data2[:, 0], data2[:, 3], data2[:, 4]
         phase2 = np.array(PHASE2, dtype=float)
         
         t01, per, rp, a, inc, e, w, fp = args.epoc, args.period, args.rad, args.smaxis, args.inclination, args.ecc, args.omega, args.flux
-        t02 = t01
+        t02 = t01 + args.period/2
         bounds = Bounds(([t01-0.005, t02-0.005, 0.1, 0.1, 2, 2, 80., 0.4, 0., 0., 0., 0., 0.]), ([t01+0.005, t02+0.005, 10, 10, 50, 35, 90., 0.95, 50., 1., 1., 1., 1.]))		
         res = mini(fit_db, [t01, t02, rp, fp, a, a, inc, e, w, 0.3, 0.2, 0.3, 0.2], args=(phase1, flux1, err1, phase2, flux2, err2), bounds=bounds)
         
